@@ -1,0 +1,2 @@
+# Staggered_Fermions_HMC
+Code for Lattice SU(3) gauge theory with staggered fermions on the lattice sites. The MC update uses it the hybrid monte carlo update as described in Gattringer with the staggered dirac operator. 

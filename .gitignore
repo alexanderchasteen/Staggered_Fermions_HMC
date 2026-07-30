@@ -1,0 +1,21 @@
+# Ignore all CSV data files
+*.csv
+
+# Ignore compiled/executable .x files
+*.x
+
+# Ignore Python virtual environments
+venv/
+.env/
+.venv/
+
+# Ignore Eigen library directory
+eigen-5.0.0/
+
+# Python cache (good practice)
+__pycache__/
+*.pyc
+.vscode/
+*.png
+*.txt
+*.json

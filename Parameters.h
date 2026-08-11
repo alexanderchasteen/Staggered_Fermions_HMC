@@ -6,8 +6,8 @@
 
 
 // Lattice Configurations 
-constexpr int Spatial_Size = 16;
-constexpr int temporal_size = 8;
+constexpr int Spatial_Size = 4;
+constexpr int temporal_size = 4;
 constexpr int array_size = 4*Spatial_Size*Spatial_Size*Spatial_Size*18*temporal_size;
 // 4n^4 total sites, 18 elements (9 real, 9 imaginary) of an SU(3) matrix to be stored at everysingle point
 constexpr int Nplaq = Spatial_Size*Spatial_Size*Spatial_Size*temporal_size*6;
@@ -15,13 +15,19 @@ constexpr int Nplaq = Spatial_Size*Spatial_Size*Spatial_Size*temporal_size*6;
 const int maxdistance = std::floor(Spatial_Size/2)-1;
 
 
-
+const double fermion_mass = 1.0;
+const int Staggered_Fermion_field_indices = 2*3*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size; //3 color indices which are complex numbers (2 reals) and lattice volume
+const int conjugate_field_array_size = Spatial_Size*Spatial_Size*Spatial_Size*temporal_size*4*18; //Same size as the gauge field 
+const double epsilon = 1e-2;
+const int number_of_steps_fermion=1e2;
+const double tol = 1e-12;
+const int max_iter = 50000;  
 
 
 // Beta configurations
 constexpr double dbeta=0.5;
-constexpr double beta_min=0.25;
-constexpr int CONFIG = 15;
+constexpr double beta_min=4.1;
+constexpr int CONFIG = 1;
 constexpr double beta_max=beta_min+CONFIG*dbeta;
 constexpr std::array<double, CONFIG> make_couplings() {
     std::array<double, CONFIG> arr{};

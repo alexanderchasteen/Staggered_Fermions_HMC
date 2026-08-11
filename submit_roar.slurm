@@ -36,10 +36,10 @@ cd $SLURM_SUBMIT_DIR
 
 # --- Compilation with Eigen ---
 # Include common system/module path locations for Eigen header files
-EIGEN_INC="-I./eigen/eigen-5.0.0"
+EIGEN_INC="-I./eigen-5.0.0"
 
 echo "Compiling C++ source code with Eigen support..."
-g++ -O3 -fopenmp -std=c++17 $EIGEN_INC Main.cpp Lattice.cpp SU3_Sampling.cpp rng.cpp statistics.cpp -o lqcd_sim
+g++ -O3 -fopenmp -std=c++17 $EIGEN_INC Main.cpp Lattice.cpp SU3_Sampling.cpp rng.cpp statistics.cpp Fermions.cpp -o lqcd_sim
 
 if [ $? -ne 0 ]; then
     echo "Compilation failed! Check stderr log."

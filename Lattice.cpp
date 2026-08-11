@@ -2,7 +2,9 @@
     #include "SU3_Sampling.h"
     #include "Parameters.h"
     #include <iostream>
-
+    #include <iomanip>
+    #include "Fermions.h"
+    #include <unsupported/Eigen/MatrixFunctions>
 
 
     // Gives the index in an array given the indices in our 7 index tensor for the lattice_data information (at a singular beta)
@@ -193,6 +195,21 @@
     }
 
 
+    void hot_start_array(Link_array& arr){
+        for (int i1 = 0; i1 < Spatial_Size; i1++)
+        for (int i2 = 0; i2 < Spatial_Size; i2++)
+        for (int i3 = 0; i3 < Spatial_Size; i3++)
+        for (int i4 = 0; i4 < temporal_size; i4++)
+        for (int i5 = 0; i5 < 4; i5++){
+            link_index link_index_array = {i1,i2,i3,i4,i5};
+            SU3 U;
+            U = Random_SU3_generator();
+            set_link_SU3(arr, link_index_array,U);
+        }
+        return;
+    }
+
+
     void moveup(lattice_index& lattice_index_array, int link_direction){
         lattice_index_array[link_direction]+=1;
         if (link_direction==3){
@@ -314,58 +331,59 @@
                 // Bottom rectangle: Type 1: The link is on the short side of the rectangle.
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array); 
+                staple = get_SU3_at_link(arr,local_link_index_array).adjoint(); 
                 
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array).adjoint();
 
             
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array);
 
 
                 moveup(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple = staple * (get_SU3_at_link(arr,local_link_index_array));
                 
                 moveup(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple = staple * (get_SU3_at_link(arr,local_link_index_array));
                 
 
 
 
-                rectangle_staple_sum += staple;
-
-                // Top rectangle: Type 2: The link is on the short side of the rectangle.
+                rectangle_staple_sum += staple.adjoint();
                 moveup(tmp,dperp);
                 movedown(tmp,d);
                 
                 assert(tmp == lattice_index_array);
+
+                // Top rectangle: Type 2: The link is on the short side of the rectangle.
+        
+                moveup(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint(); 
+                staple = get_SU3_at_link(arr,local_link_index_array); 
                 
 
                 moveup(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array);
 
                 moveup(tmp,dperp);
+                movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
-
-                moveup(tmp,d);
-                movedown(tmp,dperp);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
+                staple =  staple * (get_SU3_at_link(arr,local_link_index_array).adjoint());
 
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array).adjoint();
+
+                movedown(tmp,dperp);
+                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
+                staple = staple * get_SU3_at_link(arr,local_link_index_array).adjoint();
 
                 rectangle_staple_sum += staple;
-                movedown(tmp,d);
                 assert(tmp == lattice_index_array);
 
 
@@ -374,49 +392,52 @@
                 //Type 3: The rectangle is below the link
                 movedown(tmp,dperp); 
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array);
+                staple = get_SU3_at_link(arr,local_link_index_array).adjoint();
                 
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple =  staple * (get_SU3_at_link(arr,local_link_index_array));
                 
                 moveup(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple =  staple * (get_SU3_at_link(arr,local_link_index_array));
 
                 moveup(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array);
 
                 moveup(tmp,dperp);
                 movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
+                staple = staple * get_SU3_at_link(arr,local_link_index_array).adjoint();
 
                 movedown(tmp,d);
-                rectangle_staple_sum += staple;
+                rectangle_staple_sum += staple.adjoint();
                 assert(tmp == lattice_index_array);
 
                 //Type 4: The rectangle is above the link
+
+                moveup(tmp,d);
+                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
+                staple = get_SU3_at_link(arr,local_link_index_array);
+                
+                moveup(tmp,dperp);
                 movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array);
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
 
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
-
-                moveup(tmp,dperp);
+                movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
 
-                moveup(tmp,d);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
-                
-                moveup(tmp,d);
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
-                movedown(tmp,d);
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
+            
+
+                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
+                staple =  staple * (get_SU3_at_link(arr,local_link_index_array));
+
+                moveup(tmp,d);
                 rectangle_staple_sum += staple;
                 assert(tmp == lattice_index_array);
 
@@ -425,48 +446,50 @@
 
                 movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array);
+                staple = get_SU3_at_link(arr,local_link_index_array).adjoint();
 
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple =  get_SU3_at_link(arr,local_link_index_array)*staple;
+                staple =  staple * get_SU3_at_link(arr,local_link_index_array).adjoint();
 
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+                staple =  staple * (get_SU3_at_link(arr,local_link_index_array));
 
                 moveup(tmp,d);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
+                staple = staple * get_SU3_at_link(arr,local_link_index_array);
                 
                 moveup(tmp,d); 
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                staple = staple *  get_SU3_at_link(arr,local_link_index_array);
 
                 moveup(tmp,dperp);
                 movedown(tmp,d);
-                rectangle_staple_sum += staple;
+                rectangle_staple_sum += staple.adjoint();
                 assert(tmp == lattice_index_array);
 
                 //Type 6: The rectangle is above the link
+                moveup(tmp,d);
+                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
+                staple = get_SU3_at_link(arr,local_link_index_array);
+
+                moveup(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint();
+                staple = staple * get_SU3_at_link(arr, local_link_index_array) ;
 
                 moveup(tmp,dperp);
+                movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;  
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
 
-                moveup(tmp,d);
+                movedown(tmp,d);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint()*staple;
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
 
-                moveup(tmp,d);
                 movedown(tmp,dperp);
                 local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
-                movedown(tmp,d);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
-                movedown(tmp,d);
+                staple = staple * get_SU3_at_link(arr, local_link_index_array).adjoint();
+
                 rectangle_staple_sum += staple;
                 assert(tmp == lattice_index_array);
 
@@ -744,11 +767,10 @@
                             SU3 U = get_SU3_at_link(arr, link_index_array);
                             SU3 A1 = compute_staple_sum_at_link(arr, link_index_array);
                             SU3 A2 = compute_rectangle_staple_sum_at_link(arr, link_index_array);
-                            SU3 A = c_11 * A1 + c_12 * A2;
+                            double action_plaq = ((U * A1).trace().real()) / 4.0;
+                            double action_rect = ((U * A2).trace().real()) / 6.0;
                             
-                            // Division by 4.0 accounts for each plaquette/rectangle being 
-                            // counted 4 times when iterating over all links.
-                            double action = - (beta / 3.0) * ((U * A).trace().real()) / 4.0;
+                            double action = - (beta / 3.0) * (c_11 * action_plaq + c_12 * action_rect);
                             total_action += action;
                         }
                     }
@@ -757,6 +779,32 @@
         }
         return total_action;   
     }
+
+
+    double compute_avg_plaq(const Link_array& arr){
+        double total_plaq = 0.0;
+        for (int i1 = 0; i1 < Spatial_Size; ++i1) {
+            for (int i2 = 0; i2 < Spatial_Size; ++i2) {
+                for (int i3 = 0; i3 < Spatial_Size; ++i3) {
+                    for (int i4 = 0; i4 < temporal_size; ++i4) {
+                        for (int d = 0; d < 4; ++d) {
+                            link_index link_index_array = {i1, i2, i3, i4, d};
+                            SU3 U = get_SU3_at_link(arr, link_index_array);
+                            SU3 A = compute_staple_sum_at_link(arr, link_index_array);
+                            // Division by 4.0 accounts for each plaquette/rectangle being 
+                            // counted 4 times when iterating over all links.
+                            double staple_sum = ((U * A).trace().real()) / 3.0;
+                            total_plaq += staple_sum;
+                        }
+                    }
+                }
+            }
+        }
+        return total_plaq/(4*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size);   
+    }
+
+
+
 
 
    bool save_all_lattice_configs(const std::array<Link_array, CONFIG>& links_at_coupling, const std::string& filename) {
@@ -936,3 +984,267 @@ void check_unitarity(const Link_array& arr) {
         }
         std::cout << "All links are unitary and have determinant 1 within tolerance." << std::endl;
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SU3 random_traceless_hermitian_SU3() {
+    // Generate a random Hermitian 3x3 matrix
+    SU3 H;
+    H.setZero();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    for (int i = 0; i < 3; ++i) {
+        H(i,i) = dist(gen);
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = i + 1; j < 3; ++j) {
+            double re = dist(gen);
+            double im = dist(gen);
+
+            H(i,j) = complex(re, im);
+            H(j,i) = complex(re, -im);
+        }
+    }
+
+    // Make traceless
+    complex tr = H.trace();
+    complex tr_over_3 = tr / 3.0;
+
+    for (int i = 0; i < 3; ++i) {
+        H(i,i) -= tr_over_3;
+    }
+
+    return H;
+}
+
+double finite_difference_fermion_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double eps)
+{
+    std::vector<double> phi = generate_phi_field(arr);
+
+    std::vector<double> X =
+        solve_X_field(phi, arr);
+
+    std::vector<double> Y =
+        solve_Y_field(X, arr);
+
+    SU3 F =
+        compute_fermion_force_at_link(
+            X, Y, arr, idx);
+
+    auto generators = get_gell_mann_matrices();
+
+    SU3 U0 =
+        get_SU3_at_link(arr, idx);
+
+    std::cout << "\n========================================\n";
+    std::cout << "FERMION FORCE GENERATOR TEST\n";
+    std::cout << "========================================\n";
+
+    for (int a = 0; a < 8; ++a)
+    {
+        Eigen::Matrix3cd P =
+            0.5 * generators[a];
+
+        P =
+            0.5 * (P + P.adjoint());
+
+        P -=
+            (P.trace() / 3.0)
+            * Eigen::Matrix3cd::Identity();
+
+        Link_array arr_plus = arr;
+        Link_array arr_minus = arr;
+
+        SU3 U_plus =
+            numerically_stable_matrix_exponential(
+                eps * P
+            ) * U0;
+
+        SU3 U_minus =
+            numerically_stable_matrix_exponential(
+                -eps * P
+            ) * U0;
+
+        set_link_SU3(arr_plus, idx, U_plus);
+        set_link_SU3(arr_minus, idx, U_minus);
+
+        std::vector<double> X_plus =
+            solve_X_field(phi, arr_plus);
+
+        std::vector<double> X_minus =
+            solve_X_field(phi, arr_minus);
+
+        double S_plus =
+            field_inner_product_real(phi, X_plus);
+
+        double S_minus =
+            field_inner_product_real(phi, X_minus);
+
+        double numerical =
+            (S_plus - S_minus) / (2.0 * eps);
+
+        /*
+           The force is anti-Hermitian.
+           For U -> exp(i eps P) U:
+
+               dS = -i Tr(F P)
+
+           which is real.
+        */
+        double analytic = (F * P).trace().real();
+
+        std::cout
+            << "Generator " << a
+            << " : numerical = "
+            << numerical
+            << "   analytic = "
+            << analytic
+            << "   error = "
+            << std::abs(numerical - analytic)
+            << "\n";
+    }
+
+    std::cout << "========================================\n";
+
+    return 0.0;
+}
+
+// ============================================================================
+// COMBINED (GAUGE + FERMION) FINITE-DIFFERENCE FORCE TEST
+// ============================================================================
+// Same generator-perturbation pattern as finite_difference_fermion_force_test,
+// but tests S_total = S_gauge + S_f against F_total = F_gauge + F_fermion.
+// This is the test that actually matters for HMC: it catches a sign/convention
+// mismatch between the two forces even if each one is individually correct
+// in isolation.
+double finite_difference_combined_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double beta,
+    double eps)
+{
+    std::vector<double> phi = generate_phi_field(arr);
+    std::vector<double> X   = solve_X_field(phi, arr);
+    std::vector<double> Y   = solve_Y_field(X, arr);
+
+    SU3 F_gauge   = compute_gauge_force_at_link(arr, idx, beta);
+    SU3 F_fermion = compute_fermion_force_at_link(X, Y, arr, idx);
+    SU3 F_total   = F_gauge + F_fermion;
+
+    auto generators = get_gell_mann_matrices();
+    SU3 U0 = get_SU3_at_link(arr, idx);
+
+    std::cout << "\n========================================\n";
+    std::cout << "COMBINED (GAUGE+FERMION) FORCE TEST\n";
+    std::cout << "========================================\n";
+
+    for (int a = 0; a < 8; ++a)
+    {
+        Eigen::Matrix3cd P = 0.5 * generators[a];
+        P = 0.5 * (P + P.adjoint());
+        P -= (P.trace() / 3.0) * Eigen::Matrix3cd::Identity();
+
+        Link_array arr_plus  = arr;
+        Link_array arr_minus = arr;
+
+        SU3 U_plus  = numerically_stable_matrix_exponential(eps * P)  * U0;
+        SU3 U_minus = numerically_stable_matrix_exponential(-eps * P) * U0;
+
+        set_link_SU3(arr_plus,  idx, U_plus);
+        set_link_SU3(arr_minus, idx, U_minus);
+
+        // S_total = S_gauge + S_f, evaluated at the perturbed links
+        double S_gauge_plus  = compute_action(arr_plus, beta);
+        double S_gauge_minus = compute_action(arr_minus, beta);
+
+        std::vector<double> X_plus  = solve_X_field(phi, arr_plus);
+        std::vector<double> X_minus = solve_X_field(phi, arr_minus);
+        double S_f_plus  = field_inner_product_real(phi, X_plus);
+        double S_f_minus = field_inner_product_real(phi, X_minus);
+
+        double S_plus  = S_gauge_plus  + S_f_plus;
+        double S_minus = S_gauge_minus + S_f_minus;
+
+        double numerical = (S_plus - S_minus) / (2.0 * eps);
+        double analytic  = (F_total * P).trace().real();
+
+        std::cout
+            << "Generator " << a
+            << " : numerical = " << numerical
+            << "   analytic = "  << analytic
+            << "   error = "     << std::abs(numerical - analytic)
+            << "\n";
+    }
+    std::cout << "========================================\n";
+    return 0.0;
+}
+
+
+
+double finite_difference_gauge_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double beta,
+    double eps)
+{
+    SU3 F = compute_gauge_force_at_link(arr, idx, beta);
+
+    auto generators = get_gell_mann_matrices();
+    SU3 U0 = get_SU3_at_link(arr, idx);
+
+    std::cout << "\n========================================\n";
+    std::cout << "GAUGE FORCE GENERATOR TEST\n";
+    std::cout << "========================================\n";
+
+    for (int a = 0; a < 8; ++a)
+    {
+        Eigen::Matrix3cd P = 0.5 * generators[a];
+        P = 0.5 * (P + P.adjoint());
+        P -= (P.trace() / 3.0) * Eigen::Matrix3cd::Identity();
+
+        Link_array arr_plus  = arr;
+        Link_array arr_minus = arr;
+
+        SU3 U_plus  = numerically_stable_matrix_exponential(eps * P)  * U0;
+        SU3 U_minus = numerically_stable_matrix_exponential(-eps * P) * U0;
+
+        set_link_SU3(arr_plus,  idx, U_plus);
+        set_link_SU3(arr_minus, idx, U_minus);
+
+        double S_plus  = compute_action(arr_plus,  beta);
+        double S_minus = compute_action(arr_minus, beta);
+
+        double numerical = (S_plus - S_minus) / (2.0 * eps);
+
+        // Same convention as the fermion test:
+        // U -> exp(i eps P) U  =>  dS = -i Tr(F P), which is real.
+        double analytic = (F * P).trace().real();
+
+        std::cout
+            << "Generator " << a
+            << " : numerical = " << numerical
+            << "   analytic = "  << analytic
+            << "   error = "     << std::abs(numerical - analytic)
+            << "\n";
+    }
+    std::cout << "========================================\n";
+    return 0.0;
+}

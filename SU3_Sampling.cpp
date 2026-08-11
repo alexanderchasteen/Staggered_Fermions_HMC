@@ -1,13 +1,13 @@
 #include "SU3_Sampling.h"
 #include "rng.h"
 
+inline double get_rand_01() {
+    return get_uniform_random();
+}
 
-// Initialize our uniform distribution between [0,1)
-std::uniform_real_distribution<double> dist(0.0, 1.0);
-
-
-// Initialize another uniform distribution between [-1,1)
-std::uniform_real_distribution<double> dist2(-1.0, 1.0);
+inline double get_rand_m1_1() {
+    return 2.0 * get_uniform_random() - 1.0;
+}
 
 
 // SU(2) Generator
@@ -17,13 +17,13 @@ std::uniform_real_distribution<double> dist2(-1.0, 1.0);
 double generate_x0(double a,double beta){
     // First we need to generate 3 numbers in (0,1]. So use rng to generate in r_i in [0,1) and do 1-r_i
     while (true){ 
-        double r_1=1.0-dist(rng);
-        double r_2=1.0-dist(rng);
-        double r_3=1.0-dist(rng);
+        double r_1=1.0-get_rand_01();
+        double r_2=1.0-get_rand_01();
+        double r_3=1.0-get_rand_01();
         // As in gatringer this parameter is defined
         double lambda_squared=-1/(2*a*beta) * (std::log(r_1)+(std::cos(2*pi*r_2))*(std::cos(2*pi*r_2))*std::log(r_3));
         double x=1-lambda_squared;
-        double r=dist(rng);
+        double r=get_rand_01();
         if (r * r <= x && x >= -1 && x <= 1) return 1-2*lambda_squared; 
     }
 }
@@ -52,9 +52,9 @@ double get_norm_x(double x0){
 // to get x1,x2,x3, generate random unit 3 vector and then give it length as calculated above. First we generate unit norm vector
 std::array<double,3> generate_random_unit_3_vector(){
     while (true){     
-        double r_1=dist2(rng);
-        double r_2=dist2(rng);
-        double r_3=dist2(rng);
+        double r_1=get_rand_m1_1();
+        double r_2=get_rand_m1_1();
+        double r_3=get_rand_m1_1();
         double length=std::sqrt(r_1*r_1+r_2*r_2+r_3*r_3);
         std::array<double,3> array ={r_1,r_2,r_3};
         // auto& means it will alter the values of the array
@@ -174,10 +174,10 @@ SU2 SU2_generator(double a,double beta){
 
 std::array<double,4> generate_random_unit_4_vector(){
     while (true){     
-        double r_1=dist2(rng);
-        double r_2=dist2(rng);
-        double r_3=dist2(rng);
-        double r_4=dist2(rng);
+        double r_1=get_rand_m1_1();
+        double r_2=get_rand_m1_1();
+        double r_3=get_rand_m1_1();
+        double r_4=get_rand_m1_1();
         double length=std::sqrt(r_1*r_1+r_2*r_2+r_3*r_3+r_4*r_4);
         std::array<double,4> array ={r_1,r_2,r_3,r_4};
         // auto& means it will alter the values of the array
@@ -199,3 +199,54 @@ SU2 Random_SU2_generator(){
 }
 
 
+// Generate random SU3 for hot start 
+
+SU3 embed_R(const SU2& u) {
+    SU3 U;
+    U.setIdentity();
+
+    U(0,0) = u(0,0);
+    U(0,1) = u(0,1);
+    U(1,0) = u(1,0);
+    U(1,1) = u(1,1);
+
+    return U;
+}
+
+SU3 embed_S(const SU2& u) {
+    SU3 U;
+    U.setIdentity();
+
+    U(1,1) = u(0,0);
+    U(1,2) = u(0,1);
+    U(2,1) = u(1,0);
+    U(2,2) = u(1,1);
+
+    return U;
+}
+
+SU3 embed_T(const SU2& u) {
+    SU3 U;
+    U.setIdentity();
+
+    U(0,0) = u(0,0);
+    U(0,2) = u(0,1);
+    U(2,0) = u(1,0);
+    U(2,2) = u(1,1);
+
+    return U;
+}
+
+SU3 Random_SU3_generator()
+{
+    SU3 U;
+    U.setIdentity();
+
+    for (int i = 0; i < 10; ++i) {
+        U = embed_R(Random_SU2_generator()) * U;
+        U = embed_S(Random_SU2_generator()) * U;
+        U = embed_T(Random_SU2_generator()) * U;
+    }
+
+    return U;
+}

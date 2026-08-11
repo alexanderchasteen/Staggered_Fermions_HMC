@@ -22,6 +22,7 @@ using spat_index = std::array<int,3>;
 SU3 get_SU3_at_link(const Link_array&arr, link_index link_index_array); 
 void set_link_SU3(Link_array& arr, link_index link_index_array, const SU3& SU3_matrix);
 void cold_start_array(Link_array& arr);
+void hot_start_array(Link_array& arr);
 
 
 
@@ -72,7 +73,8 @@ SU3 type_S_heatbath(const Link_array& arr, link_index link_index_array, double b
 SU3 type_T_heatbath(const Link_array& arr, link_index link_index_array, double beta, SU3 U, SU3 A);
 std::pair<double, double> single_link_heatbath(Link_array& arr, const link_index& link_index_array, double beta);
 std::pair<double, double> heatbath_update(Link_array& arr, double beta);
-double compute_action(Link_array arr, double beta);
+double compute_action(const Link_array& arr, double beta);
+double compute_avg_plaq(const Link_array& arr);
 
 void check_unitarity(const Link_array& arr);
 
@@ -81,3 +83,23 @@ complex compute_correlator(const Link_array& arr, spat_index m, spat_index n);
 complex correlator_over_fixed_distance(const Link_array& arr, int r);
 std::vector<complex> precompute_polyakov_grid(const Link_array& arr);
 complex correlator_over_fixed_distance_fast(const std::vector<complex>& P_grid, int r_squared);
+
+
+
+
+double finite_difference_fermion_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double eps);
+
+double finite_difference_combined_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double beta,
+    double eps);
+
+double finite_difference_gauge_force_test(
+    Link_array arr,
+    const link_index& idx,
+    double beta,
+    double eps);

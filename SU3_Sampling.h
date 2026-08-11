@@ -10,7 +10,8 @@
 constexpr double pi=3.14159265358979323846;
 
 
-
+inline double get_rand_01();
+inline double get_rand_m1_1();
 
 // To generate an SU(2) matrix is the same as generating x_0,\vec{x} according to gatringer (Num. Sim. Pure Gauge Theory
 // I will recreate this
@@ -43,3 +44,9 @@ std::array<double,3> generate_random_unit_3_vector();
 std::array<double,3> generate_3_vector_norm_x(double x0);
 four_complex_array SU_2_matrix_as_array(double a, double beta);
 std::array<double,4> generate_random_unit_4_vector();
+
+
+SU3 embed_R(const SU2& u);
+SU3 embed_S(const SU2& u);
+SU3 embed_T(const SU2& u);
+SU3 Random_SU3_generator();

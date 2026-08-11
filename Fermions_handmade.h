@@ -12,6 +12,15 @@
 
 
 
+const double fermion_mass = 1.0;
+const int Staggered_Fermion_field_indices = 2*3*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size; //3 color indices which are complex numbers (2 reals) and lattice volume
+const int conjugate_field_array_size = Spatial_Size*Spatial_Size*Spatial_Size*temporal_size*4*18; //Same size as the gauge field 
+const double epsilon = 0.001;
+const int number_of_steps_fermion=5;
+const double tol = 1e-10;
+const int max_iter = 5000;
+
+
 // Field configuration architecture
 int moveup_fermion(lattice_index& lattice_index_array, int link_direction);
 int movedown_fermion(lattice_index& lattice_index_array, int link_direction);
@@ -46,14 +55,16 @@ SU3 numerically_stable_matrix_exponential(const SU3& Q); //for lie algebra eleme
 // Actual algorithm
 Eigen::Matrix3cd proj_su3(const Eigen::Matrix3cd& M);
 Eigen::Matrix3cd compute_gauge_force_at_link(const Link_array& arr, const link_index& idx, double beta);
-Eigen::Matrix3cd compute_fermion_force_at_link(const std::vector<double>& X_field, const std::vector<double>& Y_field, const Link_array& arr,const link_index& idx);
+Eigen::Matrix3cd compute_fermion_force_at_link(const std::vector<double>& X_field,const std::vector<double>& Y_field, const Link_array& arr,const link_index& idx);
 double field_inner_product_real(const std::vector<double>& A,const std::vector<double>& B);
 void apply_DDdagger(const std::vector<double>& in_field, const Link_array& arr, std::vector<double>& out_field);
 std::vector<double> solve_CG_DDdagger(const std::vector<double>& phi_field, const Link_array& arr) ;
 std::vector<double> solve_X_field(const std::vector<double>& phi_field,const Link_array& arr);
 std::vector<double> solve_Y_field(const std::vector<double>& X_field, const Link_array& arr);
-std::vector<double> compute_full_force_field(const std::vector<double>& X_field, const std::vector<double>& Y_field, const Link_array& arr, double beta);
+std::vector<double> compute_full_force_field(const std::vector<double>& phi_field,const Link_array& arr,double beta);
+std::vector<double> compute_full_force_field_last_step(const std::vector<double>& X_field, const std::vector<double>& phi_field,const Link_array& arr,double beta);
 double compute_Tr_P2(const std::vector<double>& P_field);
+double compute_phi_dagger_DDdagger_inverse_phi(const std::vector<double>& phi_field, const Link_array& arr);
 void apply_initial_step_to_conjugate_field(std::vector<double>& P_field, double beta,const std::vector<double>& phi_field,const Link_array& arr);
 void apply_intermediate_update_to_gauge_field_and_conjugate_field(std::vector<double> & P_field, double beta,const std::vector<double>& phi_field,Link_array& arr);
 std::vector<double> apply_final_step(std::vector<double> & P_field,double beta,const std::vector<double>& phi_field,Link_array& arr);
@@ -68,78 +79,3 @@ void Monte_carlo_step(
     const std::vector<double>& X_field, 
     double beta);
 void single_sweep_monte_carlo_update_WITH_FERMIONS(Link_array& gauge_field,double beta);
-
-
-
-void run_reversibility_test(Link_array gauge_field_initial, double beta);
-void local_initial_half_step(std::vector<double>& P_field, double beta,
-                              const std::vector<double>& phi_field,
-                              const Link_array& arr, double eps);
-
-void local_leapfrog_steps(std::vector<double>& P_field, double beta,
-                           const std::vector<double>& phi_field,
-                           Link_array& arr, double eps, int n_steps);
-
-std::vector<double> local_final_step(std::vector<double>& P_field, double beta,
-                                      const std::vector<double>& phi_field,
-                                      Link_array& arr, double eps);
-
-struct TrajectoryResult {
-    double delta_H;
-    double initial_H;
-    double final_H;
-};
-
-
-TrajectoryResult run_trajectory(Link_array gauge_field, double beta,
-                                 const std::vector<double>& phi_field,
-                                 std::vector<double> P_field,
-                                 double eps, int n_steps);
-
-void run_force_scaling_test(const Link_array& gauge_field_initial, double beta);
-
-
-
-
-
-std::vector<double> compute_fermion_only_force_field(
-    const std::vector<double>& X_field, 
-    const std::vector<double>& Y_field,
-    const Link_array& arr);
-
-void local_initial_half_step_fermion(std::vector<double>& P_field,
-                                     const std::vector<double>& phi_field,
-                                     const Link_array& arr, double eps);
-
-void local_leapfrog_steps_fermion(std::vector<double>& P_field,
-                                  const std::vector<double>& phi_field,
-                                  Link_array& arr, double eps, int n_steps);
-                            
-std::vector<double> local_final_step_fermion(std::vector<double>& P_field,
-                                             const std::vector<double>& phi_field,
-                                             Link_array& arr, double eps);
-                                            
-TrajectoryResult run_fermion_trajectory(Link_array gauge_field,
-                                        const std::vector<double>& phi_field,
-                                        std::vector<double> P_field,
-                                        double eps, int n_steps);
-                                    
-void run_fermion_force_scaling_test(const Link_array& gauge_field_initial);
-
-
-std::vector<double> compute_gauge_only_force_field(const Link_array& arr, double beta);
-
-void local_initial_half_step_gauge(std::vector<double>& P_field, double beta,
-                                   const Link_array& arr, double eps);
-
-void local_leapfrog_steps_gauge(std::vector<double>& P_field, double beta,
-                                Link_array& arr, double eps, int n_steps) ;
-
-void local_final_step_gauge(std::vector<double>& P_field, double beta,
-                            Link_array& arr, double eps);
-
-TrajectoryResult run_gauge_trajectory(Link_array gauge_field, double beta,
-                                      std::vector<double> P_field,
-                                      double eps, int n_steps);
-
-void run_gauge_force_scaling_test(const Link_array& gauge_field_initial, double beta);

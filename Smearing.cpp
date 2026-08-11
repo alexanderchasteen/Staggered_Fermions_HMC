@@ -2,179 +2,330 @@
     #include "SU3_Sampling.h"
     #include "Parameters.h"
     #include "Lattice.h"    
+    #include <Eigen/Dense>
+    #include <complex>
+    #include "Fermions.h"
     #include <iostream>
 
 
-    // STILL UNDER WORKS, LOTS OF BUGS
-
-    double sinx_over_x_stable(double x) {
-        if (std::abs(x) <= 0.05) {
-            return 1.0-1/6*x*x*(1-1/20*x*x*(1- 1/42*x*x)); // Use the limit value for small x
-        } else {
-            return std::sin(x) / x;
-        }
-    }
 
 
-    SU3 numerically_stable_matrix_exponential(matrix_3by3 Q){
-        matrix_3by3 Q_cubed = Q*Q*Q;
-        matrix_3by3 Q_squared = Q*Q;
-        double c0 = 1/3*(Q_cubed.trace().real());
 
-        if (Q_cubed.trace().imag() != 0) {
-            std::cerr << "Error: Q cubed matrix has non-zero imaginary trace." << std::endl;
-            // Placeholder return value
-            return;
-        }
+int flat_index_smearing_3_tensor(const int mu, const int nu, const int rho, const int x, const int y, const int z, const int t) {
+    return ((4 * mu + nu) * 4 + rho)*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size + x*Spatial_Size*Spatial_Size*temporal_size + y*Spatial_Size*temporal_size + z*temporal_size + t;
+}
 
-        double c1 = 1/2*(Q_squared.trace().real());
-        if (c1 < 0) {
-            std::cerr << "Error: Q squared matrix has negative trace." << std::endl;
-            // Placeholder return value
-            return;
-        }
-        std::complex<double> f0, f1, f2;
-        if (c0>=0){
-            double c0_max = 2*std::sqrt(c1*c1*c1/27);
-            double theta = std::acos(c0/c0_max);
-            double w = std::sqrt(c1)*std::sin(theta/3);
-            double u = std::sqrt(c1/3)*std::cos(theta/3);
+std::array<int, 7> tensor_index_smearing_3_tensor(int flat_index) {
+    int t = flat_index % temporal_size;
+    flat_index /= temporal_size;
+    int z = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int y = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int x = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int rho = flat_index % 4;
+    flat_index /= 4;
+    int nu = flat_index % 4;
+    flat_index /= 4;
+    int mu = flat_index % 4;
 
-    
-            // computing the h functions
-            std::complex<double> h0 = (u*u-w*w)*std::exp(std::complex<double>(0,2)*u) + std::exp(std::complex<double>(0,-1)*u)*(8*u*u*std::cos(w)+std::complex<double>(0,2)*u*(3*u*u+w*w)*sinx_over_x_stable(w));
-            std::complex<double> h1 = 2.0*u*std::exp(std::complex<double>(0,2)*u)- std::exp(std::complex<double>(0,-1)*u)*(2*u*std::cos(w)+std::complex<double>(0,-1)*(3*u*u-w*w)*sinx_over_x_stable(w));
-            std::complex<double> h2 = std::exp(std::complex<double>(0,2)*u)- std::exp(std::complex<double>(0,-1)*u)*(std::cos(w)+std::complex<double>(0,3)*u*sinx_over_x_stable(w));
-            // computing the f functions
-            double denom = 9*u*u - w*w;
-            f0 = h0/denom;
-            f1 = h1/denom;
-            f2 = h2/denom;
-        }
+    return {mu,nu,rho,x,y,z,t};
+}
 
-        if (c0<0){
-            c0 = -c0;
-            double c0_max = 2*std::sqrt(c1*c1*c1/27);
-            double theta = std::acos(c0/c0_max);
-            double w = std::sqrt(c1)*std::sin(theta/3);
-            double u = std::sqrt(c1/3)*std::cos(theta/3);
+int flat_index_smearing_2_tensor(const int mu, const int nu, const int x, const int y, const int z, const int t) {
+    return ((4 * mu + nu)*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size + x*Spatial_Size*Spatial_Size*temporal_size + y*Spatial_Size*temporal_size + z*temporal_size + t);
+}
 
-    
-            // computing the h functions
-            std::complex<double> h0 = (u*u-w*w)*std::exp(std::complex<double>(0,2)*u) + std::exp(std::complex<double>(0,-1)*u)*(8*u*u*std::cos(w)+std::complex<double>(0,2)*u*(3*u*u+w*w)*sinx_over_x_stable(w));
-            std::complex<double> h1 = 2.0*u*std::exp(std::complex<double>(0,2)*u)- std::exp(std::complex<double>(0,-1)*u)*(2*u*std::cos(w)+std::complex<double>(0,-1)*(3*u*u-w*w)*sinx_over_x_stable(w));
-            std::complex<double> h2 = std::exp(std::complex<double>(0,2)*u)- std::exp(std::complex<double>(0,-1)*u)*(std::cos(w)+std::complex<double>(0,3)*u*sinx_over_x_stable(w));
-            // computing the f functions
-            double denom = 9*u*u - w*w;
-            f0 = std::conj(h0/denom);
-            f1 = -std::conj(h1/denom);
-            f2 = std::conj(h2/denom);
-        }
+std::array<int, 6> tensor_index_smearing_2_tensor(int flat_index) {
+    int t = flat_index % temporal_size;
+    flat_index /= temporal_size;
+    int z = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int y = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int x = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int nu = flat_index % 4;
+    flat_index /= 4;
+    int mu = flat_index % 4;
 
-        SU3 exponential_of_iQ = f0*Eigen::Matrix3d::Identity() + f1*Q + f2*Q_squared;
-        return exponential_of_iQ; 
-    } 
+    return {mu,nu,x,y,z,t};
+}
 
 
-    SU3 compute_weighted_staplesum_at_link(const Link_array& arr, const link_index& link_index_array){
-        lattice_index lattice_index_array = {link_index_array[0], link_index_array[1], link_index_array[2], link_index_array[3]};
-        int d=link_index_array[4];
-        link_index local_link_index_array;
-        SU3 staple;
-        staple.setZero();
-        SU3 staple_sum; 
-        staple_sum.setZero();
-        for (int dperp=0;dperp<4;dperp++){
-            if (dperp!=d){
-                // make temperoray lattice_index_array storage because each time we loop we want to start back at the beginning point 
-                lattice_index tmp = lattice_index_array;
-                // Bottom staple
-            
-                //Let us grab U_{ν}(n-ν)
-                movedown(tmp,dperp);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array); 
-                
-                //Let us grab U_{-μ}(n+μ-ν)=U_{μ}^dagger(n-ν)
-                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
+int flat_index_smearing_1_tensor(const int mu, const int x, const int y, const int z, const int t) {
+    return ((mu)*Spatial_Size*Spatial_Size*Spatial_Size*temporal_size + x*Spatial_Size*Spatial_Size*temporal_size + y*Spatial_Size*temporal_size + z*temporal_size + t);
+}
 
-                //Let us grab U_{-ν}(n+μ)=U_{ν}^dagger}(n+μ-ν)
-                moveup(tmp,d);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
-                
-                staple_sum += staple;
+std::array<int, 5> tensor_index_smearing_1_tensor(int flat_index) {
+    int t = flat_index % temporal_size;
+    flat_index /= temporal_size;
+    int z = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int y = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int x = flat_index % Spatial_Size;
+    flat_index /= Spatial_Size;
+    int mu = flat_index % 4;
 
-                // Top staple
-                //Let us grab U_{-ν}(n+ν)=U_{ν}(n)^dagger
-                moveup(tmp,dperp);
-                movedown(tmp,d);
-                
-                assert(tmp == lattice_index_array);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array).adjoint(); 
-                
-                //Let us grab U_{-μ}(n+μ+ν)
-                moveup(tmp,dperp);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,d);
-                staple =  (get_SU3_at_link(arr,local_link_index_array).adjoint())*staple;
-
-                //Let us grab U_{ν}(n+μ)
-                moveup(tmp,d);
-                movedown(tmp,dperp);
-                local_link_index_array = combine_lattice_index_with_direction(tmp,dperp);
-                staple = get_SU3_at_link(arr,local_link_index_array)*staple;
-
-                staple_sum += staple;
-                movedown(tmp,d);
-                assert(tmp == lattice_index_array);
+    return {mu,x,y,z,t};
+}
 
 
-                staple_sum *= rho(d,dperp);
+std::vector<SU3> apply_step_1(const Link_array& U) {
+    std::vector<SU3> Gamma1_mu_nu_rho(smearing_size_3_index);
+    // index in the 64 is given by (4*mu+nu)*4+rho, where mu,nu,rho are the directions of the staples
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                            for (int nu = 0; nu < 4; nu++) {
+                                for (int rho = 0; rho < 4; rho++) {
+                                    SU3 Gamma_1;
+                                    Gamma_1.setZero(); 
+                                    for (int sigma = 0; sigma < 4; sigma++) {
+                                        if (mu != sigma &&nu != sigma && rho != sigma) {
+                                            lattice_index lattice_index_array;
+                                            lattice_index_array[0] = x;
+                                            lattice_index_array[1] = y;
+                                            lattice_index_array[2] = z;
+                                            lattice_index_array[3] = t;
+                                            SU3 up_part = get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],sigma});
+                                            moveup(lattice_index_array, sigma);
+                                            up_part = up_part * get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],mu});
+                                            movedown(lattice_index_array, sigma);
+                                            moveup(lattice_index_array, mu);
+                                            up_part = up_part * get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],sigma}).adjoint();
+                                            movedown(lattice_index_array, mu);
+                                            movedown(lattice_index_array, sigma);
+                                            SU3 down_part = get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],sigma}).adjoint();
+                                            down_part = down_part * get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],mu});
+                                            moveup(lattice_index_array, mu);
+                                            down_part = down_part * get_SU3_at_link(U, {lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3],sigma});
+                                            // moveup(lattice_index_array, sigma);
+                                            // movedown(lattice_index_array, mu);
+                                            // assert(lattice_index_array[0] == x && lattice_index_array[1] == y && lattice_index_array[2] == z && lattice_index_array[3] == t);
+                                            Gamma_1 += up_part + down_part;
+                                        }
+                                    }
+                                    int index = flat_index_smearing_3_tensor(mu, nu, rho, x, y, z, t);
+                                    Gamma1_mu_nu_rho[index] = Gamma_1;
+                                }
+                            }
+                        }
+                    }
+                }     
             }
         }
-        return staple_sum;
+        return Gamma1_mu_nu_rho;
     }
+    
 
-    matrix_3by3 compute_Q_matrix(Link_array& arr, const link_index& link_index_array){
-        SU3 U = get_SU3_at_link(arr,link_index_array);
-        SU3 C = compute_weighted_staplesum_at_link(arr,link_index_array);
-        matrix_3by3 Omega = C*U.adjoint();
-        matrix_3by3 Q = (Omega - Omega.adjoint())/(2.0*std::complex<double>(0,1)) + (Omega.adjoint()-Omega).trace()/(6.0*std::complex<double>(0,1))*Eigen::Matrix3d::Identity();
-        return Q;
-    }
+SU3 projection(const SU3& matrix) {
+    SU3 projected_matrix = 0.5 * (matrix - matrix.adjoint()) - (1.0 / 3.0) * (0.5 * (matrix - matrix.adjoint())).trace() * SU3::Identity();
+    return projected_matrix;
+}
 
 
-    void smear_single_link(Link_array& arr, const link_index& link_index_array, double rho){
-        SU3 U = get_SU3_at_link(arr,link_index_array);
-        matrix_3by3 Q = compute_Q_matrix(arr,link_index_array);
-        SU3 exp_iQ = numerically_stable_matrix_exponential(std::complex<double>(0,rho)*Q);
-        SU3 smeared_link = exp_iQ*U;
-        // Do something with the smeared link, e.g., update the link in the array
-        set_link_SU3(arr, link_index_array, smeared_link);
-    }
+std::vector<SU3> apply_step_2(std::vector<SU3> Gamma1_mu_nu_rho, const Link_array& U_array) {
+    std::vector<SU3> V1_mu_nu_rho(smearing_size_3_index);
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                            for (int nu = 0; nu < 4; nu++) {
+                                for (int rho = 0; rho < 4; rho++) {
+                                    SU3 V1;
+                                    SU3 U = get_SU3_at_link(U_array, {x,y,z,t,mu});
+                                    V1 = Gamma1_mu_nu_rho[flat_index_smearing_3_tensor(mu, nu, rho, x, y, z, t)]*U.adjoint();
+                                    V1 = projection(V1)*alpha3 * 0.5 ;
+                                    V1 = numerically_stable_matrix_exponential(V1) * U;
+                                    V1_mu_nu_rho[flat_index_smearing_3_tensor(mu, nu, rho, x, y, z, t)] = V1;
+                                }
+                            }
+                       }
+                    }
+                }
+            }
+        }
+    return V1_mu_nu_rho;
+}
+ 
+std::vector<SU3> apply_step_3(std::vector<SU3> V1_mu_nu_rho) {
+    std::vector<SU3> Gamma2_mu_nu(smearing_size_2_index);
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                            for (int nu = 0; nu < 4; nu++) {
+                                SU3 Gamma_2;
+                                Gamma_2.setZero(); 
+                                for (int sigma = 0; sigma < 4; sigma++) {
+                                    if (mu != sigma && nu != sigma) {
+                                        lattice_index lattice_index_array;
+                                        lattice_index_array[0] = x;
+                                        lattice_index_array[1] = y;
+                                        lattice_index_array[2] = z;
+                                        lattice_index_array[3] = t;
 
-    void smear_lattice(Link_array& arr, double rho){
-        for (int x=0;x<Spatial_Size;x++){
-            for (int y=0;y<Spatial_Size;y++){
-                for (int z=0;z<Spatial_Size;z++){
-                    for (int t=0;t<temporal_size;t++){
-                        lattice_index lattice_index_array = {x,y,z,t};
-                        for (int d=0;d<4;d++){
-                            link_index link_index_array = combine_lattice_index_with_direction(lattice_index_array,d);
-                            smear_single_link(arr,link_index_array,rho);
+
+                                        SU3 up_part = V1_mu_nu_rho[flat_index_smearing_3_tensor(sigma, mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                        moveup(lattice_index_array, sigma);
+
+                                        // FIX: Middle link is in dir 'mu', excluded 'nu' and 'sigma'. So indices are (mu, nu, sigma).
+                                        up_part = up_part * V1_mu_nu_rho[flat_index_smearing_3_tensor(mu, nu, sigma, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                        movedown(lattice_index_array, sigma);
+                                        moveup(lattice_index_array, mu);
+
+                                        up_part = up_part * V1_mu_nu_rho[flat_index_smearing_3_tensor(sigma, mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])].adjoint();
+                                        movedown(lattice_index_array, mu);
+
+                                        // --- DOWN STAPLE ---
+                                        movedown(lattice_index_array, sigma);
+                                        SU3 down_part = V1_mu_nu_rho[flat_index_smearing_3_tensor(sigma, mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])].adjoint();
+
+                                        down_part = down_part * V1_mu_nu_rho[flat_index_smearing_3_tensor(mu, nu, sigma, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                        moveup(lattice_index_array, mu);
+
+                                        down_part = down_part * V1_mu_nu_rho[flat_index_smearing_3_tensor(sigma, mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                       
+
+                                        Gamma_2 += up_part + down_part;
+                                    }
+                                }
+                                int index = flat_index_smearing_2_tensor(mu, nu, x, y, z, t);
+                                Gamma2_mu_nu[index] = Gamma_2;
+                            }
                         }
                     }
                 }
             }
         }
+        return Gamma2_mu_nu;
     }
 
-    void smear_lattice_multiple_times(Link_array& arr, double rho, int num_smearings){
-        for (int i=0;i<num_smearings;i++){
-            smear_lattice(arr,rho);
+
+
+std::vector<SU3> apply_step_4(std::vector<SU3> Gamma2_mu_nu, const Link_array& U_array) {
+    std::vector<SU3> V2_mu_nu(smearing_size_2_index);
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                            for (int nu = 0; nu < 4; nu++) {
+                                SU3 V2;
+                                SU3 U = get_SU3_at_link(U_array, {x,y,z,t,mu});
+                                V2 = Gamma2_mu_nu[flat_index_smearing_2_tensor(mu, nu, x, y, z, t)]*U.adjoint();
+                                V2 = projection(V2)*alpha2 * 0.5 ;
+                                V2 = numerically_stable_matrix_exponential(V2) * U;
+                                V2_mu_nu[flat_index_smearing_2_tensor(mu, nu, x, y, z, t)] = V2;
+                            }
+                       }
+                    }
+                }
+            }
+        }
+    return V2_mu_nu;
+}
+
+std::vector<SU3> apply_step_5(std::vector<SU3> V2_mu_nu){
+    std::vector<SU3> Gamma_3_mu(smearing_size_1_index);
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                            SU3 Gamma_3;
+                            for (int nu = 0; nu < 4; nu++) {
+                                if (mu != nu) {
+                                    lattice_index lattice_index_array;
+                                    lattice_index_array[0] = x;
+                                    lattice_index_array[1] = y;
+                                    lattice_index_array[2] = z;
+                                    lattice_index_array[3] = t;
+                                    SU3 up_part = V2_mu_nu[flat_index_smearing_2_tensor(nu, mu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                    moveup(lattice_index_array, nu);
+                                    up_part = up_part * V2_mu_nu[flat_index_smearing_2_tensor(mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                    movedown(lattice_index_array, nu);
+                                    moveup(lattice_index_array, mu);
+                                    up_part = up_part * V2_mu_nu[flat_index_smearing_2_tensor(nu, mu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])].adjoint();
+                                    movedown(lattice_index_array, mu);
+
+                                    // --- DOWN STAPLE ---
+                                    movedown(lattice_index_array, nu);
+                                    SU3 down_part = V2_mu_nu[flat_index_smearing_2_tensor(nu, mu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])].adjoint();
+                                    down_part = down_part * V2_mu_nu[flat_index_smearing_2_tensor(mu, nu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+                                    moveup(lattice_index_array, mu);
+                                    down_part = down_part * V2_mu_nu[flat_index_smearing_2_tensor(nu, mu, lattice_index_array[0],lattice_index_array[1],lattice_index_array[2],lattice_index_array[3])];
+
+
+                                
+                                    Gamma_3 += up_part + down_part;
+                                }
+                            }
+                            int index = flat_index_smearing_1_tensor(mu, x, y, z, t);
+                            Gamma_3_mu[index] = Gamma_3;
+                        }
+                    }
+                }
+            }
+        }
+    return Gamma_3_mu;
+    }
+    
+    
+void apply_step_6(std::vector<SU3> Gamma_3_mu, Link_array& U_array) {
+    std::vector<SU3> V_mu(smearing_size_1_index);
+    for (int x = 0; x < Spatial_Size; x++) {
+        for (int y = 0; y < Spatial_Size; y++) {
+            for (int z = 0; z < Spatial_Size; z++) {
+                for (int t = 0; t < temporal_size; t++) {
+                    for (int mu = 0; mu < 4; mu++) {
+                        SU3 V3;
+                        SU3 U = get_SU3_at_link(U_array, {x,y,z,t,mu});
+                        V3 = Gamma_3_mu[flat_index_smearing_1_tensor(mu, x, y, z, t)]*U.adjoint();
+                        V3 = projection(V3)*alpha1 * 0.5 ;
+                        V3 = numerically_stable_matrix_exponential(V3) * U;
+                        set_link_SU3(U_array, {x,y,z,t,mu}, V3);
+                    }
+                }
+            }
         }
     }
+    return;
+}
 
+
+void Apply_HEX_smearing(Link_array& U_array) {
+    std::vector<SU3> Gamma1_mu_nu_rho = apply_step_1(U_array);
+    std::vector<SU3> V1_mu_nu_rho = apply_step_2(Gamma1_mu_nu_rho, U_array);
+    std::vector<SU3> Gamma2_mu_nu = apply_step_3(V1_mu_nu_rho);
+    std::vector<SU3> V2_mu_nu = apply_step_4(Gamma2_mu_nu, U_array);
+    std::vector<SU3> Gamma3_mu = apply_step_5(V2_mu_nu);
+    apply_step_6(Gamma3_mu, U_array);
+}
+
+void Apply_4HEX_smearing(Link_array& U_array) {
+    for (int i = 0; i < 4; i++) {
+        Apply_HEX_smearing(U_array);
+    }
+    return;
+}
+
+std::vector<Link_array> Apply_4HEX_smearing_with_history(const Link_array& U_thin) {
+    std::vector<Link_array> history;
+    history.push_back(U_thin);
     
+    Link_array U_current = U_thin;
+    for (int step = 0; step < 4; ++step) {
+        Apply_HEX_smearing(U_current); // Modifies U_current to the next level
+        history.push_back(U_current);
+    }
+    return history;
+}
+
